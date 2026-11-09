@@ -1,0 +1,26 @@
+# 实验 3 的 Prometheus 配置。四类目标：
+#   enrolld    任务 A 单独启动的那个实例（127.0.0.1:8081）
+#   instances  scaler 启动的实例；目标列表由 scaler 写进 data/targets.json，Prometheus 发现文件变化后自动更新
+#   lbd        负载均衡器的指标（管理端口 8090）
+#   node       node_exporter（资源层）
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: enrolld
+    scrape_interval: 1s
+    static_configs:
+      - targets: ["127.0.0.1:8081"]
+  - job_name: instances
+    # 伸缩信号来自这里：抓取间隔也是控制环“指标延迟”的一部分（L-11 第 10 页）
+    scrape_interval: 5s
+    file_sd_configs:
+      - files: ["../data/targets.json"]
+  - job_name: lbd
+    scrape_interval: 1s
+    static_configs:
+      - targets: ["127.0.0.1:8090"]
+  - job_name: node
+    static_configs:
+      - targets: ["127.0.0.1:9100"]

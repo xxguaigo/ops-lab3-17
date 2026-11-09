@@ -1,0 +1,33 @@
+# 任务 A：单个实例（job="enrolld"，127.0.0.1:8081）的服务层与 cgroup 指标。scripts/run.sh 每次实验结束后用 promsteps
+# 对每个阶段执行一遍，结果写进 runs/<名字>/red.csv。
+#
+# 每行：名字  PromQL。${window} 是阶段窗口（阶段时长减去开头 5 s）；${route}、${slo} 由 run.sh 填。
+# 每条查询只能返回一条序列，需要时用 sum(...) 聚合。前几行是实验 2 里你们写过的 RED，这里直接给出。
+
+# ---- 服务层：RED ----
+server_rps          sum(rate(http_requests_total{job="enrolld",route="${route}"}[${window}]))
+server_error_rate   (sum(rate(http_requests_total{job="enrolld",route="${route}",code=~"5.."}[${window}])) or vector(0)) / sum(rate(http_requests_total{job="enrolld",route="${route}"}[${window}]))
+server_p99_ms       1000 * histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{job="enrolld",route="${route}"}[${window}])))
+server_mean_ms      1000 * sum(rate(http_request_duration_seconds_sum{job="enrolld",route="${route}"}[${window}])) / sum(rate(http_request_duration_seconds_count{job="enrolld",route="${route}"}[${window}]))
+inflight_avg        avg_over_time(http_inflight_requests{job="enrolld",route="${route}"}[${window}])
+cpu_ms_per_req      1000 * sum(rate(process_cpu_seconds_total{job="enrolld"}[${window}])) / sum(rate(http_requests_total{job="enrolld",route="${route}"}[${window}]))
+sched_wait_p99_ms   1000 * histogram_quantile(0.99, rate(go_sched_latencies_seconds_bucket{job="enrolld"}[${window}]))
+gomaxprocs          max_over_time(go_gomaxprocs{job="enrolld"}[${window}])
+
+# ---- cgroup 的 CPU（L-09 第 11～13 页）----
+# 配额折合的核数（cpu.max）；阶段中途改过配额时取最大值
+cg_limit_cores      max_over_time(cgroup_cpu_limit_cores{job="enrolld"}[${window}])
+# 实际用掉的核数（cpu.stat 的 usage_usec）
+cg_cpu_cores        rate(cgroup_cpu_usage_seconds_total{job="enrolld"}[${window}])
+# 任务 A2：被节流的周期占全部周期的比例（L-09 第 13 页：nr_throttled ÷ nr_periods）。把 TODO 换成你们写的 PromQL
+throttle_ratio      TODO
+# 每秒被停的时间（秒，按 CPU 累计）
+throttled_s_per_s   rate(cgroup_cpu_throttled_seconds_total{job="enrolld"}[${window}])
+
+# ---- cgroup 的内存（L-09 第 14 页）----
+mem_limit_mb        max_over_time(cgroup_memory_max_bytes{job="enrolld"}[${window}]) / 1048576
+mem_current_max_mb  max_over_time(cgroup_memory_current_bytes{job="enrolld"}[${window}]) / 1048576
+rss_max_mb          max_over_time(process_resident_memory_bytes{job="enrolld"}[${window}]) / 1048576
+heap_max_mb         max_over_time(go_heap_objects_bytes{job="enrolld"}[${window}]) / 1048576
+report_inflight_max max_over_time(http_inflight_requests{job="enrolld",route="/api/report"}[${window}])
+gc_per_s            rate(go_gc_cycles_total{job="enrolld"}[${window}])

@@ -20,7 +20,8 @@ cg_limit_cores      max_over_time(cgroup_cpu_limit_cores{job="enrolld"}[${window
 # 实际用掉的核数（cpu.stat 的 usage_usec）
 cg_cpu_cores        rate(cgroup_cpu_usage_seconds_total{job="enrolld"}[${window}])
 # 任务 A2：被节流的周期占全部周期的比例（L-09 第 13 页：nr_throttled ÷ nr_periods）。把 TODO 换成你们写的 PromQL
-throttle_ratio      TODO
+throttle_ratio    (sum(rate(cgroup_cpu_throttled_periods_total{job="enrolld"}[${window}])) / sum(rate(cgroup_cpu_periods_total{job="enrolld"}[${window}])))
+
 # 每秒被停的时间（秒，按 CPU 累计）
 throttled_s_per_s   rate(cgroup_cpu_throttled_seconds_total{job="enrolld"}[${window}])
 

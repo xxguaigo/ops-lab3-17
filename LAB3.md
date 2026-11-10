@@ -1,4 +1,4 @@
-# 实验 3 记录：第 <组号> 组
+# 实验 3 记录：第 17 组
 
 评分时依据本文件和 `runs/` 中的原始数据核对。本文件中的每一个数值，都须能在某个 `runs/<名字>/` 的文件中找到：表格用 `scripts/table.sh` 生成或从 `summary.md` 中复制后粘贴，其他数值注明出处（例如“`runs/b2-cpu/summary.md` 缺口表第 1 行”）。不要只贴截图。将 `<填写>` 替换为本组的内容。
 
@@ -7,22 +7,28 @@
 ## 1. 基本信息
 
 | 项 | 内容 |
-|---|---|
-| 小组 | 第 <组号> 组 |
-| 仓库地址 | <https://github.com/…> |
-| 主机 | <云厂商与规格名，例如某云的 2 vCPU 4 GB 通用型> |
-| CPU | <`lscpu` 的 Model name；vCPU 数> |
-| 内存与 swap | <`free -m` 的 total；`swapon --show` 的输出，没有 swap 就写“无”> |
-| 操作系统、内核、systemd | <`/etc/os-release` 的 PRETTY_NAME；`uname -r`；`systemctl --version` 第一行> |
-| cgroup | <`stat -fc %T /sys/fs/cgroup` 的输出；`cat /sys/fs/cgroup/cgroup.controllers` 的输出> |
-| Go、Prometheus、node_exporter | <`go version`；`tools/prometheus --version` 第一行；`tools/node_exporter --version` 第一行> |
-| 分核 | 实例：<如 1>；loadgen、lbd、scaler、Prometheus、node_exporter：<如 0> |
+|----|------|
+| 小组 | 第 17 组 |
+| 仓库地址 | https://github.com/xxguaigo/ops-lab3-17 |
+| 主机 | 华为云 4 vCPU 4 GB 通用型 |
+| CPU | General Purpose Processor；4 vCPU（2物理核×2超线程） |
+| 内存与 swap | 3718 MB；无 swap |
+| 操作系统、内核、systemd | Ubuntu 22.04.5 LTS；5.15.0-186-generic；systemd 249 |
+| cgroup | cgroup2fs；cpu memory |
+| Go、Prometheus、node_exporter | go1.26.0；Prometheus 2.31.2；node_exporter 1.8.1 |
+| 分核 | 实例：2；loadgen、lbd、scaler、Prometheus、node_exporter：0-1 |
+
 
 ## 2. 任务 A：配额，节流与 OOM
 
 ### 2.1 A1 配额算术
 
-预测（测量之前写）：配额 0.5 核、周期 100 ms 时，1 个和 2 个线程跑满，每个线程每个周期运行多久、被停多久？本机上 enrolld 的 GOMAXPROCS 会是几，为什么？<填写>
+预测（测量之前写）：配额 0.5 核、周期 100 ms 时，1 个和 2 个线程跑满，每个线程每个周期运行多久、被停多久？本机上 enrolld 的 GOMAXPROCS 会是几，为什么？
+
+预测：配额0.5核（100ms周期内最多跑50ms）时：
+- 1个线程：每周期跑50ms，被停50ms
+- 2个线程：每线程跑25ms，被停75ms（两个线程分50ms配额）
+GOMAXPROCS=2：cgroup限额0.5核向上取整为1，但Go规定不小于2（主机多核时），所以GOMAXPROCS=2。
 
 两次 `-burn` 的输出：
 
